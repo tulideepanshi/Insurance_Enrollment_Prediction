@@ -1,6 +1,6 @@
 # Insurance Enrollment Prediction
 
-Production-grade ML pipeline that predicts whether an employee will enroll in a voluntary insurance product based on demographic and employment data.
+Production-grade ML pipeline that predicts whether an employee will enroll in a voluntary insurance product based on demographic and employment data. Quick Overview - https://tulideepanshi.github.io/Insurance_Enrollment_Prediction/
 
 ## Project Structure
 
