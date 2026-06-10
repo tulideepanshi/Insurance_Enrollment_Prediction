@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insurance Enrollment Prediction - Model Dashboard</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --text: #e2e8f0; --text2: #94a3b8; --accent: #818cf8;
+    --green: #34d399; --yellow: #fbbf24; --red: #f87171;
+    --border: #475569; --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+    padding: 24px; max-width: 1400px; margin: 0 auto;
+  }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+  h2 {
+    font-size: 20px; font-weight: 600; margin: 40px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--accent); }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px;
+  }
+  .summary-card {
+    background: var(--surface); border-radius: var(--radius); padding: 20px;
+    border: 1px solid var(--border); position: relative; transition: transform 0.15s;
+  }
+  .summary-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .summary-card.winner { border-color: var(--green); }
+  .summary-card.winner::after {
+    content: "BEST MODEL"; position: absolute; top: 10px; right: 10px;
+    background: var(--green); color: #000; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .summary-card.baseline::after {
+    content: "CV BASELINE"; position: absolute; top: 10px; right: 10px;
+    background: var(--surface2); color: var(--text2); font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
+  }
+  .card-name { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+  .card-type { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
+  .card-acc { font-size: 36px; font-weight: 700; }
+  .card-acc span { font-size: 16px; color: var(--text2); }
+  .card-stats { margin-top: 12px; font-size: 13px; color: var(--text2); }
+  .card-stats div { display: flex; justify-content: space-between; margin: 3px 0; }
+  .card-stats .val { color: var(--text); font-weight: 500; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+    color: var(--text2); transition: all 0.15s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Images */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 24px; margin: 16px 0; }
+  .img-card { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); padding: 16px; }
+  .img-card img { width: 100%; display: block; border-radius: 8px; background: white; }
+  .img-card .img-label { padding-top: 12px; font-size: 14px; font-weight: 500; color: var(--text); text-align: center; }
+
+  /* Insights */
+  .insights {
+    background: var(--surface); border-radius: var(--radius); padding: 20px 24px;
+    border-left: 4px solid var(--accent); margin: 24px 0;
+  }
+  .insights ul { margin: 8px 0 0 20px; }
+  .insights li { margin: 8px 0; font-size: 15px; }
+
+  /* Optuna table */
+  .param-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  .param-table th, .param-table td {
+    padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .param-table th { color: var(--accent); font-weight: 600; background: var(--surface); }
+  .param-table td { color: var(--text); background: var(--surface); }
+  .param-table .highlight { color: var(--green); font-weight: 600; }
+
+  /* Pipeline section */
+  .pipeline-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 16px 0; }
+  .pipeline-card {
+    background: var(--surface); border-radius: var(--radius); padding: 16px 20px;
+    border: 1px solid var(--border);
+  }
+  .pipeline-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--accent); }
+  .pipeline-card code {
+    display: block; font-size: 12px; color: var(--text2); background: var(--surface2);
+    padding: 8px 12px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap;
+  }
+
+  .note {
+    background: var(--surface); border-radius: var(--radius); padding: 16px 20px;
+    border-left: 4px solid var(--yellow); margin: 24px 0; font-size: 14px; color: var(--text2);
+  }
+
+  @media (max-width: 900px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .img-grid { grid-template-columns: 1fr; }
+    .pipeline-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Insurance Enrollment Prediction</h1>
+<p class="subtitle">ML pipeline predicting voluntary insurance enrollment from employee demographic data (10K rows, 8 features, 4 model families)</p>
+
+<!-- KEY INSIGHTS -->
+<div class="insights">
+  <h3>Key Findings</h3>
+  <ul>
+    <li><strong>Two features dominate:</strong> <code>employment_type</code> (47-point gap) and <code>has_dependents</code> (45-point gap) drive the majority of predictive power across all models.</li>
+    <li><strong>Age has a threshold, not a slope:</strong> Step function at age 30 (26% to 70% enrollment). Captured via SplineTransformer for LR; tree models handle it natively.</li>
+    <li><strong>Gender, region, tenure are noise:</strong> Near-zero importance across all models and SHAP. Retained for regulatory and real-data considerations.</li>
+    <li><strong>Model-specific pipelines matter:</strong> LR needs splines + TargetEncoder + scaling. Trees need raw features + native categorical handling. One shared pipeline forces compromises.</li>
+  </ul>
+</div>
+
+<!-- MODEL CARDS -->
+<h2>Cross-Validation Results (Stratified 5-Fold)</h2>
+<div class="summary-grid">
+
+  <div class="summary-card baseline">
+    <div class="card-name">Logistic Regression</div>
+    <div class="card-type">Splines + TargetEncoder + Scaler</div>
+    <div class="card-acc">99.0<span>%</span></div>
+    <div class="card-stats">
+      <div><span>F1 Score</span><span class="val">0.9921</span></div>
+      <div><span>ROC-AUC</span><span class="val">0.9995</span></div>
+      <div><span>Recall</span><span class="val">0.9895</span></div>
+    </div>
+  </div>
+
+  <div class="summary-card winner">
+    <div class="card-name">Random Forest</div>
+    <div class="card-type">OrdinalEncoder + Raw Numerics</div>
+    <div class="card-acc">99.9<span>%</span></div>
+    <div class="card-stats">
+      <div><span>F1 Score</span><span class="val">0.9998</span></div>
+      <div><span>ROC-AUC</span><span class="val">1.0000</span></div>
+      <div><span>Recall</span><span class="val">0.9998</span></div>
+    </div>
+  </div>
+
+  <div class="summary-card baseline">
+    <div class="card-name">XGBoost</div>
+    <div class="card-type">Native Categorical Splits</div>
+    <div class="card-acc">99.9<span>%</span></div>
+    <div class="card-stats">
+      <div><span>F1 Score</span><span class="val">0.9995</span></div>
+      <div><span>ROC-AUC</span><span class="val">0.9999</span></div>
+      <div><span>Recall</span><span class="val">0.9994</span></div>
+    </div>
+  </div>
+
+  <div class="summary-card baseline">
+    <div class="card-name">LightGBM</div>
+    <div class="card-type">Native Categorical Splits</div>
+    <div class="card-acc">99.9<span>%</span></div>
+    <div class="card-stats">
+      <div><span>F1 Score</span><span class="val">0.9994</span></div>
+      <div><span>ROC-AUC</span><span class="val">0.9999</span></div>
+      <div><span>Recall</span><span class="val">0.9992</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  Near-perfect metrics reflect synthetic data with clean decision boundaries. The pipeline architecture (model-specific preprocessing, drift detection, experiment tracking) is the real deliverable - it transfers directly to noisier real-world data.
+</div>
+
+<!-- OPTUNA TUNING -->
+<h2>Optuna Hyperparameter Tuning (Random Forest)</h2>
+<p style="color: var(--text2); font-size: 14px; margin-bottom: 16px;">50 trials, TPE sampler, stratified 5-fold CV objective, 300s timeout</p>
+<table class="param-table">
+  <tr><th>Hyperparameter</th><th>Default</th><th>Tuned</th><th>Effect</th></tr>
+  <tr><td>n_estimators</td><td>200</td><td class="highlight">447</td><td>Lower variance</td></tr>
+  <tr><td>max_depth</td><td>10</td><td class="highlight">20</td><td>Deeper interaction capture</td></tr>
+  <tr><td>min_samples_split</td><td>2</td><td class="highlight">15</td><td>Regularization</td></tr>
+  <tr><td>min_samples_leaf</td><td>1</td><td>1</td><td>No change</td></tr>
+  <tr><td>max_features</td><td>sqrt</td><td>sqrt</td><td>No change</td></tr>
+</table>
+
+<h3 style="margin-top: 24px;">Final Test Set Performance (Held-out 20%)</h3>
+<table class="param-table">
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Accuracy</td><td class="highlight">0.9995</td></tr>
+  <tr><td>Precision</td><td class="highlight">1.0000</td></tr>
+  <tr><td>Recall</td><td class="highlight">0.9992</td></tr>
+  <tr><td>F1 Score</td><td class="highlight">0.9996</td></tr>
+  <tr><td>ROC-AUC</td><td class="highlight">1.0000</td></tr>
+</table>
+
+<!-- PIPELINES -->
+<h2>Model-Specific Feature Pipelines</h2>
+<div class="pipeline-grid">
+  <div class="pipeline-card">
+    <h4>Logistic Regression</h4>
+    <p style="font-size: 13px; color: var(--text2);">Respects linearity assumption with non-linear basis functions and proper encoding.</p>
+    <code>OutlierCapper (IQR)
+SafeEncoder
+SplineTransformer (degree=3, 5 quantile knots)
+TargetEncoder (cv=5, smooth=auto)
+StandardScaler</code>
+  </div>
+  <div class="pipeline-card">
+    <h4>Random Forest</h4>
+    <p style="font-size: 13px; color: var(--text2);">Scale-invariant, handles outliers natively. Minimal preprocessing.</p>
+    <code>SafeEncoder
+OrdinalEncoder
+Passthrough numerics</code>
+  </div>
+  <div class="pipeline-card">
+    <h4>XGBoost / LightGBM</h4>
+    <p style="font-size: 13px; color: var(--text2);">Native categorical support evaluates optimal category groupings at each split.</p>
+    <code>SafeEncoder
+CategoricalDtypeTransformer
+Passthrough numerics</code>
+  </div>
+</div>
+
+<!-- VISUALIZATION TABS -->
+<h2>Visual Analysis</h2>
+<div class="tabs" id="chart-tabs">
+  <div class="tab active" onclick="showTab('tab-eda')">EDA</div>
+  <div class="tab" onclick="showTab('tab-importance')">Feature Importance</div>
+  <div class="tab" onclick="showTab('tab-shap')">SHAP</div>
+  <div class="tab" onclick="showTab('tab-calibration')">Calibration</div>
+</div>
+
+<div class="tab-content active" id="tab-eda">
+  <div class="img-grid">
+    <div class="img-card">
+      <img src="notebooks/figures/categorical_enrollment_rates.png" alt="Categorical Enrollment Rates">
+      <div class="img-label">Enrollment Rates by Category - employment_type and has_dependents dominate</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/enrollment_rate_curves.png" alt="Enrollment Rate Curves">
+      <div class="img-label">Rolling Window Enrollment Rate - age step at 30, salary monotonic, tenure flat</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/age_step_function.png" alt="Age Step Function">
+      <div class="img-label">Age Step Function - 26% under 30 vs 70% at 30+</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/correlation_heatmap.png" alt="Association Matrix">
+      <div class="img-label">Association Matrix (Pearson | Cramer's V | Correlation Ratio)</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/target_distribution.png" alt="Target Distribution">
+      <div class="img-label">Target Distribution - 61.7% enrolled (moderate imbalance)</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/salary_enrollment_rate.png" alt="Salary Enrollment Rate">
+      <div class="img-label">Enrollment Rate by Salary Decile</div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-importance">
+  <div class="img-grid">
+    <div class="img-card">
+      <img src="notebooks/figures/importance/importance_comparison.png" alt="Importance Comparison">
+      <div class="img-label">Feature Importance - All 4 Models (employment_type and has_dependents dominate)</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/importance/importance_rank_table.png" alt="Rank Table">
+      <div class="img-label">Feature Rank Matrix - cross-model consensus on top features</div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-shap">
+  <div class="img-grid">
+    <div class="img-card">
+      <img src="notebooks/figures/shap/shap_summary.png" alt="SHAP Summary">
+      <div class="img-label">SHAP Summary - global importance and direction of effect</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/shap/shap_dependence_employment_type.png" alt="SHAP Dependence Employment Type">
+      <div class="img-label">SHAP Dependence - Employment Type</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/shap/shap_dependence_age.png" alt="SHAP Dependence Age">
+      <div class="img-label">SHAP Dependence - Age (step function visible at 30)</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/shap/shap_dependence_salary.png" alt="SHAP Dependence Salary">
+      <div class="img-label">SHAP Dependence - Salary (monotonic positive)</div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-calibration">
+  <div class="img-grid">
+    <div class="img-card">
+      <img src="notebooks/figures/calibration/calibration_top4_combined.png" alt="Top 4 Calibration">
+      <div class="img-label">Top 4 Features by SHAP - Predicted vs Actual Enrollment Rate</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/calibration/calibration_age.png" alt="Age Calibration">
+      <div class="img-label">Calibration by Age Bin</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/calibration/calibration_salary.png" alt="Salary Calibration">
+      <div class="img-label">Calibration by Salary Decile</div>
+    </div>
+    <div class="img-card">
+      <img src="notebooks/figures/calibration/calibration_has_dependents.png" alt="Dependents Calibration">
+      <div class="img-label">Calibration by Dependent Status</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

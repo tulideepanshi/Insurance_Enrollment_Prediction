@@ -1,0 +1,33 @@
+{
+  "gender": [
+    "Female",
+    "Male",
+    "Other",
+    "__unknown__"
+  ],
+  "marital_status": [
+    "Divorced",
+    "Married",
+    "Single",
+    "Widowed",
+    "__unknown__"
+  ],
+  "employment_type": [
+    "Contract",
+    "Full-time",
+    "Part-time",
+    "__unknown__"
+  ],
+  "region": [
+    "Midwest",
+    "Northeast",
+    "South",
+    "West",
+    "__unknown__"
+  ],
+  "has_dependents": [
+    "No",
+    "Yes",
+    "__unknown__"
+  ]
+}
